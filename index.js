@@ -9,10 +9,12 @@ import userRoute from './routes/users.js'
 import authRoute from './routes/auth.js'
 import reviewRoute from './routes/reviews.js'
 import bookingRoute from './routes/bookings.js'
+import tourGuideRoutes from './routes/tourGuides.js';
+import newsletterSubscriberRoutes from './routes/newsletterSubscribers.js';
 
 dotenv.config()
 const app = express()
-const port = process.env.PORT || 8000
+const port = process.env.PORT || 4000
 
 const corsOptions ={
     origin:'http://localhost:3000',
@@ -39,6 +41,8 @@ app.use('/api/v1/tours',tourRoute)
 app.use('/api/v1/users',userRoute)
 app.use('/api/v1/review',reviewRoute)
 app.use('/api/v1/book',bookingRoute)
+app.use('/api/v1/tour-guides', tourGuideRoutes);
+app.use('/api/v1/newsletter-subscribers', newsletterSubscriberRoutes);
 
 app.listen(port ,()=>{
     connect()

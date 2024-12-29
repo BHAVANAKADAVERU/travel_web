@@ -1,49 +1,98 @@
-
 import Tour from '../models/Tour.js';
 
+// Allowed categories for tours
+const allowedCategories = ["Beach", "Adventure", "Cultural", "City", "Nature"];
 
-//create new tour
-export const createTour = async (req,res)=>{
+// Create new tour
+export const createTour = async (req, res) => {
+    const { category } = req.body;
+
+    // Validate category
+    if (!allowedCategories.includes(category)) {
+        return res.status(400).json({
+            success: false,
+            message: `Invalid category. Allowed categories are: ${allowedCategories.join(", ")}`,
+        });
+    }
+
     const newTour = new Tour(req.body);
 
-    try{
+    try {
         const savedTour = await newTour.save();
 
         res.status(200).json({
-            success:true,
-            message:'Successfully created',
-            data:savedTour,
+            success: true,
+            message: 'Successfully created',
+            data: savedTour,
         });
 
-    }catch(err){
-        res.status(500).json({success:false,message:'Failed to create. Try again'});
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to create. Try again' });
     }
 };
 
-//update tour
-export const updateTour = async(req,res)=>{
-   
-    const id = req.params.id
-   
-    try {
+// Update tour
+export const updateTour = async (req, res) => {
+    const id = req.params.id;
+    const { category } = req.body;
 
-        const updatedTour = await Tour.findByIdAndUpdate(id,{
-          $set: req.body  
-        },{new:true})
-
-        res.status(200).json({
-            success:true,
-            message:'Successfully updated',
-            data:updatedTour,
-        });
-        
-    } catch (err) {
-        res.status(500).json({
-            success:false,
-            message:'Failed to update',
+    // Validate category if provided
+    if (category && !allowedCategories.includes(category)) {
+        return res.status(400).json({
+            success: false,
+            message: `Invalid category. Allowed categories are: ${allowedCategories.join(", ")}`,
         });
     }
-}
+
+    try {
+        const updatedTour = await Tour.findByIdAndUpdate(
+            id,
+            { $set: req.body },
+            { new: true }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Successfully updated',
+            data: updatedTour,
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update',
+        });
+    }
+};
+
+// Get tours by category
+export const getToursByCategory = async (req, res) => {
+    const { category } = req.query;
+
+    if (!allowedCategories.includes(category)) {
+        return res.status(400).json({
+            success: false,
+            message: `Invalid category. Allowed categories are: ${allowedCategories.join(", ")}`,
+        });
+    }
+
+    try {
+        const tours = await Tour.find({ category }).populate('reviews');
+
+        res.status(200).json({
+            success: true,
+            message: 'Successfully found tours',
+            data: tours,
+        });
+
+    } catch (err) {
+        res.status(404).json({
+            success: false,
+            message: 'No tours found for the given category',
+        });
+    }
+};
+
 
 //delete tour
 export const deleteTour = async(req,res)=>{
@@ -115,49 +164,76 @@ export const getAllTour = async(req,res)=>{
 
     }
     
-    }
+}
 
 
-    // get tour by search
-    export const getTourBySearch = async(req,res)=>{
-
-        console.log(req.query)
-        // here 'i' means case sensitive
-        const city = new RegExp(req.query.city, 'i')
-        const distance = parseInt(req.query.distance)
-        const maxGroupSize = parseInt(req.query.maxGroupSize)
-
-        try {
-            
-            // gte means greater than equal
-            const tours =await Tour.find({city, distance:{$gte:distance},
-            maxGroupSize:{$gte:maxGroupSize}}).populate('reviews')
-            if(tours.length>0)
-            {
-                res.status(200).json({
-                    success:true,
-                    message:'Successfully find all',
-                    data:tours
-                })
-            }
-            else
-            {
-                res.status(404).json({
-                    success:false,
-                    message:'no result found',
-                    data:tours
-                })  
-            }
-
-        } catch (err) {
-            res.status(404).json({
-                success:false,
-                message:'no data found',
-            });
-            
+export const getTourBySearch = async (req, res) => {
+        // Extract query parameters from the request
+        const { city, distance, maxGroupSize, priceRange, tourType } = req.query;
+    
+        // Initialize filter object
+        let filter = {};
+    
+        // Location - city filter (case-insensitive search)
+        if (city) {
+            filter.city = new RegExp(city, 'i');
         }
-
-    }
+    
+        // Distance - filter by distance (greater than or equal to specified distance)
+        if (distance) {
+            const distanceInt = parseInt(distance);
+            if (!isNaN(distanceInt)) {
+                filter.distance = { $gte: distanceInt };
+            }
+        }
+    
+        // Max People - filter by maxGroupSize (greater than or equal to specified maxGroupSize)
+        if (maxGroupSize) {
+            const maxGroupSizeInt = parseInt(maxGroupSize);
+            if (!isNaN(maxGroupSizeInt)) {
+                filter.maxGroupSize = { $gte: maxGroupSizeInt };
+            }
+        }
+    
+        // Price Range - filter by price (assuming it's in the format "$0 - $1000")
+        if (priceRange) {
+            const [minPrice, maxPrice] = priceRange.split('-').map(price => parseInt(price.replace('$', '').trim()));
+            if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+                filter.price = { $gte: minPrice, $lte: maxPrice };
+            }
+        }
+    
+        // Tour Type - filter by tour type
+        if (tourType && allowedCategories.includes(tourType)) {
+            filter.category = tourType;
+        }
+    
+        try {
+            // Query the database with the constructed filter
+            const tours = await Tour.find(filter).populate('reviews');
+    
+            if (tours.length > 0) {
+                res.status(200).json({
+                    success: true,
+                    message: 'Successfully found tours',
+                    data: tours,
+                });
+            } else {
+                res.status(404).json({
+                    success: false,
+                    message: 'No results found for your search criteria',
+                    data: tours,
+                });
+            }
+        } catch (err) {
+            res.status(500).json({
+                success: false,
+                message: 'Error occurred while searching for tours',
+                error: err.message,
+            });
+        }
+};
+    
 
 
 //get featured tour
@@ -182,10 +258,10 @@ export const getFeaturedTour = async(req,res)=>{
 
     }
     
-    }
+}
 
     //get tour counts
-    export const getTourCount = async(req,res)=>{
+export const getTourCount = async(req,res)=>{
         try {
             const tourCount = await Tour.estimatedDocumentCount()
 
@@ -194,4 +270,4 @@ export const getFeaturedTour = async(req,res)=>{
         } catch (err) {
             res.status(200).json({success:true, message:"failed to featch"}) 
         }
-    }
+}

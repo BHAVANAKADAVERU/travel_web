@@ -35,14 +35,17 @@ const tourSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-
+    category: {
+      type: String,
+      required: true,
+      enum: ["Beach", "Adventure", "Cultural", "City", "Nature"],
+    },
     reviews: [
       {
         type: mongoose.Types.ObjectId,
         ref: "Review",
       },
     ],
-
     featured: {
       type: Boolean,
       default: false,
